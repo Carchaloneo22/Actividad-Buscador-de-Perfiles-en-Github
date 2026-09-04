@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Buscador de usuarios de GitHub - Ejercicio try/catch</title>
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 40px 20px;
+  }
+
+  .container {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 32px;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  h1 {
+    font-size: 1.3rem;
+    margin-top: 0;
+    margin-bottom: 4px;
+  }
+
+  p.subtitle {
+    color: #8b949e;
+    font-size: 0.9rem;
+    margin-top: 0;
+    margin-bottom: 24px;
+  }
+
+  .search-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid #30363d;
+    background: #0d1117;
+    color: #e6edf3;
+    font-size: 0.95rem;
+  }
+
+  input[type="text"]:focus {
+    outline: none;
+    border-color: #58a6ff;
+  }
+
+  button {
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    background: #238636;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.15s ease;
+  }
+
+  button:hover {
+    background: #2ea043;
+  }
+
+  button:disabled {
+    background: #30363d;
+    cursor: not-allowed;
+  }
+
+  #loading {
+    display: none;
+    margin-top: 16px;
+    color: #8b949e;
+    font-size: 0.9rem;
+  }
+
+  #error {
+    display: none;
+    margin-top: 16px;
+    background: rgba(248, 81, 73, 0.1);
+    border: 1px solid #f85149;
+    color: #f85149;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+  }
+
+  #resultado {
+    margin-top: 20px;
+    display: none;
+    align-items: center;
+    gap: 16px;
+  }
+
+  #resultado img {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    border: 1px solid #30363d;
+  }
+
+  #resultado h3 {
+    margin: 0 0 4px 0;
+    font-size: 1.1rem;
+  }
+
+  #resultado p {
+    margin: 0;
+    color: #8b949e;
+    font-size: 0.85rem;
+  }
+
+  #resultado a {
+    color: #58a6ff;
+    text-decoration: none;
+    font-size: 0.8rem;
+  }
+
+  .log-box {
+    margin-top: 24px;
+    background: #0d1117;
+    border: 1px dashed #30363d;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 0.75rem;
+    color: #6e7681;
+    font-family: monospace;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🔍 Buscador de usuarios de GitHub</h1>
+  <p class="subtitle">Ejercicio de try / catch / finally con fetch</p>
+
+  <div class="search-row">
+    <input type="text" id="username" placeholder="ej. octocat" />
+    <button id="buscar">Buscar</button>
+  </div>
+
+  <div id="loading">Cargando información...</div>
+  <div id="error"></div>
+
+  <div id="resultado">
+    <img id="avatar" src="" alt="avatar" />
+    <div>
+      <h3 id="nombre"></h3>
+      <p id="repos"></p>
+      <a id="perfil" href="#" target="_blank">Ver perfil en GitHub →</a>
+    </div>
+  </div>
+
+  <div class="log-box" id="log">Consola de eventos (para ver el flujo del try/catch)...</div>
+</div>
+
+<script>
+  const boton = document.getElementById("buscar");
+  const inputUsuario = document.getElementById("username");
+  const divResultado = document.getElementById("resultado");
+  const divError = document.getElementById("error");
+  const divLoading = document.getElementById("loading");
+  const logBox = document.getElementById("log");
+
+  function log(mensaje) {
+    const linea = document.createElement("div");
+    linea.textContent = `> ${mensaje}`;
+    logBox.appendChild(linea);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  // Función que puede lanzar errores (throw)
+  async function buscarUsuario(username) {
+    log(`Iniciando fetch para "${username}"...`);
+    const respuesta = await fetch(`https://api.github.com/users/${username}`);
+
+    if (!respuesta.ok) {
+      // Error "manual": la petición llegó bien, pero GitHub dice que no existe
+      throw new Error(`Usuario "${username}" no encontrado (código ${respuesta.status})`);
+    }
+
+    return respuesta.json();
+  }
+
+  boton.addEventListener("click", async () => {
+    const username = inputUsuario.value.trim();
+
+    // Reset visual
+    divResultado.style.display = "none";
+    divError.style.display = "none";
+    divError.textContent = "";
+
+    if (username === "") {
+      divError.textContent = "Por favor escribe un nombre de usuario.";
+      divError.style.display = "block";
+      log("Validación fallida: campo vacío.");
+      return;
+    }
+
+    boton.disabled = true;
+    divLoading.style.display = "block";
+
+    try {
+      const datos = await buscarUsuario(username);
+
+      document.getElementById("avatar").src = datos.avatar_url;
+      document.getElementById("nombre").textContent = datos.name || datos.login;
+      document.getElementById("repos").textContent = `Repositorios públicos: ${datos.public_repos}`;
+      document.getElementById("perfil").href = datos.html_url;
+
+      divResultado.style.display = "flex";
+      log(`Éxito: datos de "${username}" cargados correctamente.`);
+
+    } catch (error) {
+      // Aquí caen tanto errores de red (sin internet) como el throw manual de arriba
+      divError.textContent = `Ocurrió un error: ${error.message}`;
+      divError.style.display = "block";
+      log(`Error capturado: ${error.message}`);
+
+    } finally {
+      // Esto se ejecuta SIEMPRE, haya habido error o no
+      divLoading.style.display = "none";
+      boton.disabled = false;
+      log("Búsqueda finalizada (bloque finally ejecutado).");
+    }
+  });
+
+  // Permitir buscar con Enter
+  inputUsuario.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") boton.click();
+  });
+</script>
+
+</body>
+</html>
